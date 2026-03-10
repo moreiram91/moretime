@@ -1,5 +1,4 @@
 import Stripe from "stripe"
-import { headers } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -19,14 +18,18 @@ export async function POST(req: Request) {
   let event: Stripe.Event
 
   try {
+
     event = stripe.webhooks.constructEvent(
       body,
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     )
+
   } catch (err) {
-    console.log("Webhook error", err)
+
+    console.log("Webhook error:", err)
     return new Response("Webhook error", { status: 400 })
+
   }
 
   if (event.type === "checkout.session.completed") {
@@ -34,32 +37,35 @@ export async function POST(req: Request) {
     const session = event.data.object as Stripe.Checkout.Session
 
     const userId = "11111111-1111-1111-1111-111111111111"
-
     const subscriptionId = session.subscription
 
     console.log("userId:", userId)
     console.log("subscriptionId:", subscriptionId)
 
     if (userId && subscriptionId) {
-    
+
       console.log("INSERT START")
 
       const subscription = await stripe.subscriptions.retrieve(
         subscriptionId as string
       )
 
-      const { data, error } = await supabase.from("subscriptions").insert({
-        user_id: userId,
-        stripe_customer_id: subscription.customer,
-        stripe_subscription_id: subscription.id,
-        status: subscription.status
-      })
-    
-    console.log("SUPABASE DATA:", data)
-    console.log("SUPABASE ERROR:", error)
-}
+      const { data, error } = await supabase
+        .from("subscriptions")
+        .insert({
+          user_id: userId,
+          stripe_customer_id: subscription.customer,
+          stripe_subscription_id: subscription.id,
+          status: subscription.status,
+        })
+
+      console.log("SUPABASE DATA:", data)
+      console.log("SUPABASE ERROR:", error)
+
     }
+
   }
 
   return new Response("ok", { status: 200 })
+
 }
